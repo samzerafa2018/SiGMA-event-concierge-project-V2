@@ -61,12 +61,13 @@ THEME_CSS = """
     :root {
         --sigma-red: #ef233c;
         --sigma-red-dark: #b51028;
-        --sigma-ink: #08090b;
-        --sigma-panel: #111318;
-        --sigma-panel-raised: #171a20;
-        --sigma-line: rgba(255, 255, 255, 0.12);
-        --sigma-muted: #a7abb4;
-        --sigma-white: #f7f7f4;
+        --sigma-ink: #17191e;
+        --sigma-bg: #f5f6f8;
+        --sigma-panel: #ffffff;
+        --sigma-panel-raised: #f0f2f5;
+        --sigma-line: rgba(23, 25, 30, 0.13);
+        --sigma-muted: #666c77;
+        --sigma-white: #ffffff;
     }
 
     html,
@@ -75,23 +76,23 @@ THEME_CSS = """
     .stApp,
     [class*="css"] {
         font-family: Inter, "Segoe UI", Helvetica, Arial, sans-serif;
-        background-color: var(--sigma-ink) !important;
+        background-color: var(--sigma-bg) !important;
     }
 
     [data-testid="stAppViewContainer"] {
         background:
             radial-gradient(
                 circle at 78% -10%,
-                rgba(239, 35, 60, 0.16),
+                rgba(239, 35, 60, 0.1),
                 transparent 34rem
             ),
-            linear-gradient(180deg, #0b0c0f 0%, #08090b 48%, #0b0c0f 100%);
-        color: var(--sigma-white);
+            linear-gradient(180deg, #ffffff 0%, #f5f6f8 48%, #ffffff 100%);
+        color: var(--sigma-ink);
     }
 
     [data-testid="stHeader"] {
-        background: rgba(8, 9, 11, 0.72);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        background: rgba(255, 255, 255, 0.86);
+        border-bottom: 1px solid var(--sigma-line);
         backdrop-filter: blur(16px);
     }
 
@@ -101,7 +102,7 @@ THEME_CSS = """
     }
 
     [data-testid="stSidebar"] {
-        background: #090a0d;
+        background: #ffffff;
         border-right: 1px solid var(--sigma-line);
     }
 
@@ -125,11 +126,11 @@ THEME_CSS = """
         height: 0.78rem;
         background: var(--sigma-red);
         transform: rotate(45deg);
-        box-shadow: 0 0 22px rgba(239, 35, 60, 0.48);
+        box-shadow: 0 0 18px rgba(239, 35, 60, 0.22);
     }
 
     .sigma-wordmark__name {
-        color: var(--sigma-white);
+        color: var(--sigma-ink);
         font-size: 1.4rem;
         font-weight: 850;
         letter-spacing: -0.04em;
@@ -170,8 +171,8 @@ THEME_CSS = """
         gap: 0.55rem;
         margin-top: 1rem;
         padding: 0.72rem 0.85rem;
-        color: #d9dbe0;
-        background: rgba(255, 255, 255, 0.035);
+        color: #3f444d;
+        background: #f7f8fa;
         border: 1px solid var(--sigma-line);
         border-radius: 0.55rem;
         font-size: 0.78rem;
@@ -182,8 +183,8 @@ THEME_CSS = """
         width: 0.48rem;
         height: 0.48rem;
         border-radius: 50%;
-        background: #4ade80;
-        box-shadow: 0 0 12px rgba(74, 222, 128, 0.72);
+        background: #22a35a;
+        box-shadow: 0 0 10px rgba(34, 163, 90, 0.32);
     }
 
     .sigma-hero {
@@ -191,11 +192,11 @@ THEME_CSS = """
         overflow: hidden;
         padding: clamp(1.6rem, 4vw, 3.1rem);
         background:
-            linear-gradient(118deg, rgba(22, 24, 30, 0.98), rgba(9, 10, 13, 0.94)),
-            #111318;
+            linear-gradient(118deg, rgba(255, 255, 255, 0.98), rgba(246, 247, 249, 0.96)),
+            #ffffff;
         border: 1px solid var(--sigma-line);
         border-radius: 1rem;
-        box-shadow: 0 28px 80px rgba(0, 0, 0, 0.28);
+        box-shadow: 0 24px 65px rgba(23, 25, 30, 0.09);
     }
 
     .sigma-hero::before {
@@ -220,35 +221,20 @@ THEME_CSS = """
     .sigma-hero__eyebrow {
         position: relative;
         z-index: 1;
-        color: #ff5267;
-        font-size: 0.7rem;
+        color: var(--sigma-red-dark);
+        font-size: clamp(1.05rem, 2.2vw, 1.45rem);
         font-weight: 800;
-        letter-spacing: 0.18em;
+        letter-spacing: 0.06em;
+        line-height: 1.3;
         text-transform: uppercase;
-    }
-
-    .sigma-hero h1 {
-        position: relative;
-        z-index: 1;
-        max-width: 760px;
-        margin: 0.75rem 0 0.8rem;
-        color: var(--sigma-white);
-        font-size: clamp(2.35rem, 6vw, 4.6rem);
-        font-weight: 880;
-        letter-spacing: -0.065em;
-        line-height: 0.98;
-    }
-
-    .sigma-hero h1 span {
-        color: var(--sigma-red);
     }
 
     .sigma-hero__copy {
         position: relative;
         z-index: 1;
         max-width: 650px;
-        margin: 0;
-        color: #bfc2c9;
+        margin: 0.9rem 0 0;
+        color: #555b65;
         font-size: 1rem;
         line-height: 1.65;
     }
@@ -265,14 +251,14 @@ THEME_CSS = """
     .sigma-stat {
         min-width: 8.5rem;
         padding: 0.72rem 0.9rem;
-        background: rgba(255, 255, 255, 0.045);
-        border: 1px solid rgba(255, 255, 255, 0.11);
+        background: #ffffff;
+        border: 1px solid var(--sigma-line);
         border-radius: 0.6rem;
     }
 
     .sigma-stat strong {
         display: block;
-        color: var(--sigma-white);
+        color: var(--sigma-ink);
         font-size: 1.1rem;
         letter-spacing: -0.02em;
     }
@@ -291,16 +277,16 @@ THEME_CSS = """
         gap: 0.72rem;
         margin: 1rem 0 0;
         padding: 0.85rem 1rem;
-        color: #f0f1f3;
-        background: rgba(239, 35, 60, 0.08);
-        border: 1px solid rgba(239, 35, 60, 0.34);
+        color: #363a42;
+        background: #fff3f5;
+        border: 1px solid rgba(239, 35, 60, 0.28);
         border-radius: 0.65rem;
         font-size: 0.85rem;
     }
 
     .availability-banner__label {
         flex: 0 0 auto;
-        color: #ff6376;
+        color: var(--sigma-red-dark);
         font-size: 0.67rem;
         font-weight: 800;
         letter-spacing: 0.12em;
@@ -310,8 +296,8 @@ THEME_CSS = """
     .welcome-card {
         margin: 1.2rem 0 0.2rem;
         padding: 1rem 1.1rem;
-        color: #c7cad0;
-        background: rgba(255, 255, 255, 0.035);
+        color: #555b65;
+        background: #ffffff;
         border: 1px solid var(--sigma-line);
         border-radius: 0.65rem;
         line-height: 1.55;
@@ -320,17 +306,17 @@ THEME_CSS = """
     .verified-note {
         margin: 0.7rem 0;
         padding: 0.72rem 0.85rem;
-        color: #d9eadf;
-        background: rgba(44, 153, 92, 0.1);
-        border: 1px solid rgba(74, 222, 128, 0.24);
+        color: #24623d;
+        background: #effaf3;
+        border: 1px solid rgba(34, 163, 90, 0.24);
         border-radius: 0.55rem;
         font-size: 0.82rem;
     }
 
     [data-testid="stButton"] > button {
         min-height: 2.7rem;
-        color: #e8e9ec;
-        background: #13151a;
+        color: #30343b;
+        background: #ffffff;
         border: 1px solid var(--sigma-line);
         border-radius: 0.55rem;
         font-weight: 650;
@@ -339,14 +325,14 @@ THEME_CSS = """
     }
 
     [data-testid="stButton"] > button:hover {
-        color: #ffffff;
-        background: #191c22;
+        color: var(--sigma-red-dark);
+        background: #fff5f6;
         border-color: rgba(239, 35, 60, 0.72);
         transform: translateY(-1px);
     }
 
     [data-testid="stButton"] > button:focus:not(:active) {
-        color: #ffffff;
+        color: var(--sigma-red-dark);
         border-color: var(--sigma-red);
         box-shadow: 0 0 0 0.2rem rgba(239, 35, 60, 0.16);
     }
@@ -354,9 +340,10 @@ THEME_CSS = """
     [data-testid="stChatMessage"] {
         margin-bottom: 0.85rem;
         padding: 1.05rem 1.1rem;
-        background: rgba(18, 20, 25, 0.78);
+        background: rgba(255, 255, 255, 0.94);
         border: 1px solid var(--sigma-line);
         border-radius: 0.8rem;
+        box-shadow: 0 8px 28px rgba(23, 25, 30, 0.055);
     }
 
     [data-testid="stChatMessage"] p,
@@ -365,14 +352,14 @@ THEME_CSS = """
     }
 
     [data-testid="stChatMessage"] strong {
-        color: #ffffff;
+        color: var(--sigma-ink);
     }
 
     [data-testid="stChatInput"] {
-        background: #111318;
-        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: #ffffff;
+        border: 1px solid rgba(23, 25, 30, 0.2);
         border-radius: 0.75rem;
-        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.32);
+        box-shadow: 0 16px 40px rgba(23, 25, 30, 0.12);
     }
 
     [data-testid="stBottom"],
@@ -380,22 +367,22 @@ THEME_CSS = """
     [data-testid="stBottomBlockContainer"],
     [data-testid="stBottomBlockContainer"] > div,
     .stBottomBlockContainer {
-        background: #08090b !important;
-        background-color: #08090b !important;
+        background: #ffffff !important;
+        background-color: #ffffff !important;
     }
 
     div:has(> [data-testid="stChatInput"]),
     div:has(> div > [data-testid="stChatInput"]),
     div:has(> div > div > [data-testid="stChatInput"]) {
-        background: #08090b !important;
-        background-color: #08090b !important;
+        background: #ffffff !important;
+        background-color: #ffffff !important;
     }
 
     [data-testid="stBottom"]::before {
         background: linear-gradient(
             180deg,
-            rgba(8, 9, 11, 0),
-            #08090b 72%
+            rgba(255, 255, 255, 0),
+            #ffffff 72%
         ) !important;
     }
 
@@ -404,23 +391,24 @@ THEME_CSS = """
     [data-testid="stChatInput"] [data-baseweb="textarea"],
     [data-testid="stChatInput"] [data-baseweb="textarea"] > div,
     [data-testid="stChatInput"] textarea {
-        color: var(--sigma-white) !important;
-        background: #111318 !important;
-        background-color: #111318 !important;
+        color: var(--sigma-ink) !important;
+        background: #ffffff !important;
+        background-color: #ffffff !important;
     }
 
     [data-testid="stChatInput"] textarea::placeholder {
-        color: #858a95 !important;
+        color: #7a808b !important;
         opacity: 1;
     }
 
     [data-testid="stChatInput"] button {
-        color: #f5f5f5 !important;
-        background: #20232a !important;
+        color: #343840 !important;
+        background: #eceef2 !important;
         border-radius: 0.55rem !important;
     }
 
     [data-testid="stChatInput"] button:hover {
+        color: #ffffff !important;
         background: var(--sigma-red) !important;
     }
 
@@ -431,13 +419,13 @@ THEME_CSS = """
 
     [data-testid="stExpander"] {
         margin-top: 0.8rem;
-        background: rgba(255, 255, 255, 0.025);
+        background: #ffffff;
         border: 1px solid var(--sigma-line);
         border-radius: 0.6rem;
     }
 
     [data-testid="stExpander"] summary:hover {
-        color: #ff6376;
+        color: var(--sigma-red-dark);
     }
 
     .stSpinner > div {
@@ -445,7 +433,7 @@ THEME_CSS = """
     }
 
     a {
-        color: #ff6376 !important;
+        color: var(--sigma-red-dark) !important;
     }
 
     @media (max-width: 720px) {
@@ -527,7 +515,6 @@ def render_hero(agenda: Agenda) -> None:
             <div class="sigma-hero__eyebrow">
                 {event_name} · AI agenda assistant
             </div>
-            <h1>Navigate the event.<br><span>Own your day.</span></h1>
             <p class="sigma-hero__copy">
                 Find the right talks, exhibitors and connections—then build a
                 conflict-free plan grounded in the official event dataset.
