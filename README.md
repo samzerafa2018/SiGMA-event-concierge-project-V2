@@ -15,8 +15,8 @@ iteration; the original submission remains unchanged.
 - Answers with agenda source citations such as `[S017]` and `[E001]`.
 - Stores availability during the current conversation.
 - Builds chronological, non-overlapping itineraries.
-- Handles follow-ups such as “Which AI sessions can I attend?” and
-  “Build an agenda using those sessions.”
+- Handles follow-ups such as Which AI sessions can I attend? and
+  Build an agenda using those sessions.
 - Rejects unsupported questions instead of inventing event information.
 
 ## How it works
