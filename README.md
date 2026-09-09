@@ -15,8 +15,8 @@ iteration; the original submission remains unchanged.
 - Answers with agenda source citations such as `[S017]` and `[E001]`.
 - Stores availability during the current conversation.
 - Builds chronological, non-overlapping itineraries.
-- Handles follow-ups such as â€œWhich AI sessions can I attend?â€ and
-  â€œBuild an agenda using those sessions.â€
+- Handles follow-ups such as “Which AI sessions can I attend?” and
+  “Build an agenda using those sessions.”
 - Rejects unsupported questions instead of inventing event information.
 
 ## How it works
@@ -28,6 +28,37 @@ helpful. Generated responses are checked against the retrieved agenda records;
 if validation fails, the system uses a verified fallback.
 
 The interface is built with Streamlit.
+
+## Project structure
+
+```text
+SiGMA-event-concierge-project-V2/
+├── app.py                              # Streamlit UI, conversation state and provider setup
+├── mini_eval.py                        # Grounded end-to-end evaluation runner
+├── requirements.txt                    # Python dependencies
+├── .env.example                        # Safe provider configuration template
+├── .gitignore                          # Excludes secrets, environments and caches
+├── .streamlit/
+│   └── config.toml                     # Streamlit theme configuration
+├── data/
+│   └── sigma_agenda.json               # Fictional sessions and exhibitors
+├── concierge/
+│   ├── __init__.py                     # Package initialisation
+│   ├── answering.py                    # Answer routing, grounding, validation and fallbacks
+│   ├── context.py                      # Conversation and availability context
+│   ├── llm.py                          # Gemini/Ollama adapters and retry handling
+│   ├── models.py                       # Pydantic agenda models and data loading
+│   ├── planner.py                      # Availability filtering and itinerary planning
+│   └── retrieval.py                    # Structured and weighted lexical retrieval
+└── tests/
+    ├── test_answering.py               # Answer grounding and fallback tests
+    ├── test_conversation_availability.py # Multi-turn availability tests
+    ├── test_eval.py                    # Evaluation-suite tests
+    ├── test_llm.py                     # Provider and retry tests
+    ├── test_models.py                  # Data-validation tests
+    ├── test_planner.py                 # Availability and itinerary tests
+    └── test_retrieval.py               # Retrieval tests
+```
 
 ## Requirements
 
