@@ -73,6 +73,7 @@ STOPWORDS = {
     "the",
     "to",
     "what",
+    "when",
     "where",
     "which",
     "who",
@@ -356,6 +357,7 @@ def _exhibitor_text(exhibitor) -> str:
 def _score(query: str, searchable_text: str, item_id: str) -> int:
     query_tokens = re.findall(r"[a-z0-9]+", query.lower())
     terms = set(query_tokens) - STOPWORDS
+    content_terms = _content_terms(query)
 
     haystack_lower = searchable_text.lower()
     haystack_terms = set(re.findall(r"[a-z0-9]+", haystack_lower))
@@ -367,6 +369,21 @@ def _score(query: str, searchable_text: str, item_id: str) -> int:
 
     for index in range(len(meaningful_tokens) - 1):
         phrase = " ".join(meaningful_tokens[index:index + 2])
+
+        if phrase in haystack_lower:
+            score += 4
+
+    # Preserve useful title phrases that contain internal stopwords, such as
+    # "KYC in 2026". Removing every stopword before phrase scoring would turn
+    # this into the non-existent phrase "KYC 2026" and leave weaker records
+    # tied with the intended session.
+    for index in range(len(query_tokens) - 1):
+        phrase_tokens = query_tokens[index:index + 2]
+
+        if not content_terms.intersection(phrase_tokens):
+            continue
+
+        phrase = " ".join(phrase_tokens)
 
         if phrase in haystack_lower:
             score += 4
@@ -552,10 +569,11 @@ def retrieve(agenda: Agenda, query: str, limit: int = 100) -> list[RetrievedItem
         and ranked_results
         and ranked_results[0].score >= 4
     ):
+        strongest_score = ranked_results[0].score
         strong_results = [
             item
             for item in ranked_results
-            if item.score > 1
+            if item.score >= strongest_score - 1
         ]
 
         if strong_results:

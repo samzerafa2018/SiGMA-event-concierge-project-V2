@@ -174,6 +174,31 @@ class GeminiProviderTests(unittest.TestCase):
 
         self.assertTrue(context.exception.retryable)
 
+    def test_timeout_uses_configured_limit_and_is_not_retryable(self) -> None:
+        fake_requests = fake_requests_module({})
+        fake_requests.post.side_effect = fake_requests.Timeout("Timed out")
+        provider = GeminiProvider(
+            api_key="test-key",
+            timeout_seconds=8,
+        )
+
+        with patch.dict(sys.modules, {"requests": fake_requests}):
+            with self.assertRaisesRegex(LLMError, "too long") as context:
+                provider.generate("system rules", "question")
+
+        self.assertFalse(context.exception.retryable)
+        self.assertEqual(
+            fake_requests.post.call_args.kwargs["timeout"],
+            8,
+        )
+
+    def test_invalid_timeout_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "timeout_seconds"):
+            GeminiProvider(
+                api_key="test-key",
+                timeout_seconds=0,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

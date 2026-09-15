@@ -57,6 +57,7 @@ EVALUATION_CASES = (
     EvalCase(
         "When is the KYC in 2026 session?",
         frozenset({"S005"}),
+        exact_ids=True,
     ),
     EvalCase(
         "Which talk covers LLMs on the casino floor?",
@@ -174,7 +175,7 @@ def build_eval_provider() -> RetryingProvider:
                 "gemini-3.7-flash",
             ),
             timeout_seconds=int(
-                os.getenv("GEMINI_TIMEOUT_SECONDS", "45")
+                os.getenv("GEMINI_TIMEOUT_SECONDS", "8")
             ),
             thinking_level=os.getenv(
                 "GEMINI_THINKING_LEVEL",

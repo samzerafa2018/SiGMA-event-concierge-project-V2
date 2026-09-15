@@ -36,8 +36,10 @@ SiGMA-event-concierge-project-V2/
 ├── app.py                              # Streamlit UI, conversation state and provider setup
 ├── mini_eval.py                        # Grounded end-to-end evaluation runner
 ├── requirements.txt                    # Python dependencies
+├── requirements-dev.txt                # Runtime dependencies plus test runner
 ├── .env.example                        # Safe provider configuration template
 ├── .gitignore                          # Excludes secrets, environments and caches
+├── .github/workflows/tests.yml          # Automated test and evaluation workflow
 ├── .streamlit/
 │   └── config.toml                     # Streamlit theme configuration
 ├── data/
@@ -53,21 +55,27 @@ SiGMA-event-concierge-project-V2/
 └── tests/
     ├── test_answering.py               # Answer grounding and fallback tests
     ├── test_conversation_availability.py # Multi-turn availability tests
+    ├── test_end_to_end.py               # Full Streamlit conversation test
     ├── test_eval.py                    # Evaluation-suite tests
     ├── test_llm.py                     # Provider and retry tests
     ├── test_models.py                  # Data-validation tests
     ├── test_planner.py                 # Availability and itinerary tests
-    └── test_retrieval.py               # Retrieval tests
+    ├── test_regressions.py             # Tests for previously observed failures
+    ├── test_retrieval.py               # Retrieval tests
+    ├── test_security.py                # Injection and input-boundary tests
+    └── test_smoke.py                   # Application startup and basic health tests
 ```
 
 ## Requirements
 
 - Python 3.11 or newer
 - Git
-- A Gemini API key **or** a local Ollama installation
+- Optionally, a Gemini API key or a local Ollama installation
 
-Gemini is the default and easiest option. API keys must remain in the local
-`.env` file and must never be committed to Git.
+The application can answer common factual questions and return verified agenda
+fallbacks without a model provider. Gemini or Ollama adds natural-language
+synthesis for recommendation-style questions. API keys must remain in the
+local `.env` file and must never be committed to Git.
 
 ## Run on Windows
 
@@ -86,7 +94,7 @@ python -m pip install -r requirements.txt
 Copy-Item .\.env.example .\.env
 ```
 
-Open `.env`, add your own Gemini API key, and keep:
+For Gemini-assisted responses, open `.env`, add your own API key, and keep:
 
 ```dotenv
 LLM_PROVIDER=gemini
@@ -116,7 +124,7 @@ python -m pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Open `.env`, add your own Gemini API key, and keep:
+For Gemini-assisted responses, open `.env`, add your own API key, and keep:
 
 ```dotenv
 LLM_PROVIDER=gemini
@@ -156,6 +164,7 @@ when Ollama is selected.
 With the virtual environment active:
 
 ```bash
+python -m pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
@@ -165,8 +174,13 @@ Run the end-to-end evaluation, including the configured model provider:
 python mini_eval.py --with-llm
 ```
 
-The latest verified run passed the complete automated test suite and all 17
-grounded end-to-end evaluation cases.
+The suite covers retrieval, planning, model-provider failures, regression
+behaviour, security boundaries, application smoke checks and a complete
+multi-turn Streamlit conversation. The latest verified run passed 65 tests,
+20 subtests and all 17 grounded evaluation cases.
+
+The GitHub Actions workflow runs the test suite and deterministic evaluation
+on every push and pull request without requiring an API key.
 
 ## Other devices
 

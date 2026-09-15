@@ -17,6 +17,9 @@ from concierge.retrieval import (
 )
 
 
+MAX_QUESTION_LENGTH = 2_000
+
+
 class Answer:
     def __init__(
         self,
@@ -81,6 +84,25 @@ Writing style:
 - Include only details that help answer the visitor's question.
 - Keep the answer concise, practical, and confident without sounding robotic.
 """
+
+
+DISALLOWED_RESPONSE_PATTERNS = (
+    re.compile(r"\bsystem prompt\b", re.IGNORECASE),
+    re.compile(r"\bdeveloper (?:message|instruction)s?\b", re.IGNORECASE),
+    re.compile(r"\bignore (?:the |all |any )?(?:previous )?instructions?\b", re.IGNORECASE),
+    re.compile(r"\bas (?:an? )?(?:ai|language model)\b", re.IGNORECASE),
+    re.compile(r"\b(?:retrieved|provided) (?:evidence|records?|context)\b", re.IGNORECASE),
+)
+
+
+PROMPT_INJECTION_PATTERN = re.compile(
+    r"\b(?:"
+    r"ignore (?:the |all |any )?(?:previous )?instructions?|"
+    r"reveal (?:your |the )?(?:system prompt|developer message|instructions?)|"
+    r"show (?:me )?(?:your |the )?(?:system prompt|developer message)"
+    r")\b",
+    re.IGNORECASE,
+)
 
 
 GENERIC_DEFINITION_PATTERN = re.compile(
@@ -326,6 +348,10 @@ def _is_valid_response(
 
     return (
         bool(citations)
+        and not any(
+            pattern.search(response)
+            for pattern in DISALLOWED_RESPONSE_PATTERNS
+        )
         and citations.issubset(allowed_sources)
         and required_sources.issubset(citations)
         and all(
@@ -669,6 +695,37 @@ class GroundedConcierge:
         ) = None,
         source_scope: tuple[str, ...] | None = None,
     ) -> Answer:
+        question = question.strip()
+
+        if not question:
+            return Answer(
+                "Please enter a question about the event agenda.",
+                (),
+                False,
+                "local",
+            )
+
+        if len(question) > MAX_QUESTION_LENGTH:
+            return Answer(
+                "Please keep the question under 2,000 characters and try again.",
+                (),
+                False,
+                "local",
+            )
+
+        if (
+            PROMPT_INJECTION_PATTERN.search(question)
+            and not EVENT_MARKER_PATTERN.search(question)
+        ):
+            return Answer(
+                "I can only help with questions about the SiGMA Malta 2026 "
+                "event agenda. Try asking about a session, speaker, "
+                "exhibitor, time, room, or stand.",
+                (),
+                False,
+                "local",
+            )
+
         if _is_generic_definition_question(question):
             return Answer(
                 "I can help with the SiGMA Malta 2026 agenda, "

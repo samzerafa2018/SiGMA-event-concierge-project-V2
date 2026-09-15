@@ -29,6 +29,20 @@ class LLMProvider(Protocol):
         ...
 
 
+class UnavailableProvider:
+    """Provider used when optional model credentials are not configured."""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+
+    def generate(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+    ) -> str:
+        raise LLMError(self.message)
+
+
 class RetryingProvider:
     """Retry a provider only when it reports a temporary failure."""
 
@@ -79,7 +93,7 @@ class GeminiProvider:
         base_url: str = (
             "https://generativelanguage.googleapis.com/v1beta"
         ),
-        timeout_seconds: int = 45,
+        timeout_seconds: int = 8,
         thinking_level: str = "low",
     ) -> None:
         api_key = api_key.strip()
@@ -89,6 +103,9 @@ class GeminiProvider:
                 "GEMINI_API_KEY is not configured. Add your Gemini API "
                 "key to the local .env file and restart the app."
             )
+
+        if timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be greater than 0")
 
         allowed_thinking_levels = {
             "minimal",
@@ -271,6 +288,9 @@ class OllamaProvider:
         base_url: str = "http://localhost:11434",
         timeout_seconds: int = 120,
     ) -> None:
+        if timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be greater than 0")
+
         self.model = model
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = timeout_seconds

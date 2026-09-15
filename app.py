@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from html import escape
@@ -7,6 +8,7 @@ from dotenv import load_dotenv
 
 from concierge.answering import (
     GroundedConcierge,
+    MAX_QUESTION_LENGTH,
     is_availability_follow_up,
 )
 from concierge.llm import (
@@ -14,12 +16,15 @@ from concierge.llm import (
     LLMError,
     OllamaProvider,
     RetryingProvider,
+    UnavailableProvider,
 )
 from concierge.models import Agenda, load_agenda
 from concierge.planner import parse_time_windows
 
 
 load_dotenv()
+
+LOGGER = logging.getLogger(__name__)
 
 st.set_page_config(
     page_title="SiGMA Event Concierge",
@@ -551,24 +556,32 @@ def build_llm_provider() -> RetryingProvider:
     ).strip().lower()
 
     if provider_name == "gemini":
-        base_provider = GeminiProvider(
-            api_key=os.getenv("GEMINI_API_KEY", ""),
-            model=os.getenv(
-                "GEMINI_MODEL",
-                "gemini-3.7-flash",
-            ),
-            base_url=os.getenv(
-                "GEMINI_BASE_URL",
-                "https://generativelanguage.googleapis.com/v1beta",
-            ),
-            timeout_seconds=int(
-                os.getenv("GEMINI_TIMEOUT_SECONDS", "45")
-            ),
-            thinking_level=os.getenv(
-                "GEMINI_THINKING_LEVEL",
-                "low",
-            ),
-        )
+        api_key = os.getenv("GEMINI_API_KEY", "").strip()
+
+        if api_key:
+            base_provider = GeminiProvider(
+                api_key=api_key,
+                model=os.getenv(
+                    "GEMINI_MODEL",
+                    "gemini-3.7-flash",
+                ),
+                base_url=os.getenv(
+                    "GEMINI_BASE_URL",
+                    "https://generativelanguage.googleapis.com/v1beta",
+                ),
+                timeout_seconds=int(
+                    os.getenv("GEMINI_TIMEOUT_SECONDS", "8")
+                ),
+                thinking_level=os.getenv(
+                    "GEMINI_THINKING_LEVEL",
+                    "low",
+                ),
+            )
+        else:
+            base_provider = UnavailableProvider(
+                "Gemini is not configured. A verified local agenda "
+                "answer will be used."
+            )
 
     elif provider_name == "ollama":
         base_provider = OllamaProvider(
@@ -854,7 +867,8 @@ for message in st.session_state.messages:
 
 typed_question = st.chat_input(
     "Ask about sessions, speakers, exhibitors, "
-    "or your event day..."
+    "or your event day...",
+    max_chars=MAX_QUESTION_LENGTH,
 )
 
 question = selected_question or typed_question
@@ -966,7 +980,9 @@ if question and question.strip():
             )
 
             st.error(error_message)
-            st.caption(str(error))
+            LOGGER.exception(
+                "Unhandled error while processing an agenda question"
+            )
 
             st.session_state.messages.append(
                 {
