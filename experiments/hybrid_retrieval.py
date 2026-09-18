@@ -137,9 +137,11 @@ class VectorIndex:
         self.encoder = encoder
         self.indices_by_event: dict[str, list[int]] = defaultdict(list)
         self.indices_by_kind: dict[str, list[int]] = defaultdict(list)
+        self.indices_by_topic: dict[str, list[int]] = defaultdict(list)
         for index, record in enumerate(records):
             self.indices_by_event[record["event_id"]].append(index)
             self.indices_by_kind[record["kind"]].append(index)
+            self.indices_by_topic[record["topic"]].append(index)
 
     def search(
         self,
@@ -148,6 +150,7 @@ class VectorIndex:
         top_k: int = 5,
         event_id: str | None = None,
         kind: str | None = None,
+        topic: str | None = None,
     ) -> list[SearchResult]:
         if top_k < 1:
             raise ValueError("top_k must be at least 1")
@@ -157,6 +160,9 @@ class VectorIndex:
             candidate_indices = list(self.indices_by_event.get(event_id, []))
         if kind is not None:
             allowed = set(self.indices_by_kind.get(kind, []))
+            candidate_indices = [index for index in candidate_indices if index in allowed]
+        if topic is not None:
+            allowed = set(self.indices_by_topic.get(topic, []))
             candidate_indices = [index for index in candidate_indices if index in allowed]
         if not candidate_indices:
             return []
@@ -230,6 +236,7 @@ class HybridIndex:
         top_k: int = 5,
         event_id: str | None = None,
         kind: str | None = None,
+        topic: str | None = None,
         candidate_k: int = 30,
     ) -> list[SearchResult]:
         if candidate_k < top_k:
@@ -239,12 +246,14 @@ class HybridIndex:
             top_k=candidate_k,
             event_id=event_id,
             kind=kind,
+            topic=topic,
         )
         vector_results = self.vector_index.search(
             query,
             top_k=candidate_k,
             event_id=event_id,
             kind=kind,
+            topic=topic,
         )
         return reciprocal_rank_fusion(
             lexical_results,
@@ -271,6 +280,7 @@ class AdaptiveHybridIndex:
         *,
         event_id: str | None,
         kind: str | None,
+        topic: str | None,
     ) -> bool:
         normalised_query = _normalise(query)
         query_lower = query.lower()
@@ -278,6 +288,8 @@ class AdaptiveHybridIndex:
             if event_id is not None and record["event_id"] != event_id:
                 continue
             if kind is not None and record["kind"] != kind:
+                continue
+            if topic is not None and record["topic"] != topic:
                 continue
             if record["record_id"].lower() in query_lower:
                 return True
@@ -293,10 +305,16 @@ class AdaptiveHybridIndex:
         top_k: int = 5,
         event_id: str | None = None,
         kind: str | None = None,
+        topic: str | None = None,
     ) -> list[SearchResult]:
         index = (
             self.lexical_index
-            if self._has_exact_signal(query, event_id=event_id, kind=kind)
+            if self._has_exact_signal(
+                query,
+                event_id=event_id,
+                kind=kind,
+                topic=topic,
+            )
             else self.vector_index
         )
         return index.search(
@@ -304,4 +322,5 @@ class AdaptiveHybridIndex:
             top_k=top_k,
             event_id=event_id,
             kind=kind,
+            topic=topic,
         )

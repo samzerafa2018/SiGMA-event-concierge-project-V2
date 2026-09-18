@@ -89,9 +89,11 @@ class LexicalIndex:
         }
         self.indices_by_event: dict[str, list[int]] = defaultdict(list)
         self.indices_by_kind: dict[str, list[int]] = defaultdict(list)
+        self.indices_by_topic: dict[str, list[int]] = defaultdict(list)
         for index, record in enumerate(records):
             self.indices_by_event[record["event_id"]].append(index)
             self.indices_by_kind[record["kind"]].append(index)
+            self.indices_by_topic[record["topic"]].append(index)
 
     def _score(self, query_tokens: list[str], index: int) -> float:
         frequencies = self.term_frequencies[index]
@@ -120,6 +122,7 @@ class LexicalIndex:
         top_k: int = 5,
         event_id: str | None = None,
         kind: str | None = None,
+        topic: str | None = None,
     ) -> list[SearchResult]:
         if top_k < 1:
             raise ValueError("top_k must be at least 1")
@@ -131,6 +134,11 @@ class LexicalIndex:
             allowed_kind_indices = set(self.indices_by_kind.get(kind, []))
             candidate_indices = (
                 index for index in candidate_indices if index in allowed_kind_indices
+            )
+        if topic is not None:
+            allowed_topic_indices = set(self.indices_by_topic.get(topic, []))
+            candidate_indices = (
+                index for index in candidate_indices if index in allowed_topic_indices
             )
 
         query_tokens = _tokens(query)
