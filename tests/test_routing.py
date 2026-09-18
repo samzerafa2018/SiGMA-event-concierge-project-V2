@@ -2,9 +2,10 @@ import unittest
 
 import numpy as np
 
+from experiments.benchmark_routing import calibrate_topic_margin
 from experiments.benchmark_retrieval import LexicalIndex
 from experiments.hybrid_retrieval import VectorIndex
-from experiments.routing import QueryRouter
+from experiments.routing import QueryRouter, RouteDecision, should_partition_topic
 
 
 class RoutingEncoder:
@@ -130,6 +131,55 @@ class RoutingTests(unittest.TestCase):
 
         self.assertEqual([result.record_id for result in lexical_results], ["EVT001-S0001"])
         self.assertEqual([result.record_id for result in vector_results], ["EVT001-S0001"])
+
+    def test_confidence_policy_always_accepts_exact_routes(self) -> None:
+        exact = RouteDecision(
+            event_id="EVT001",
+            topic="Payments & Fintech",
+            event_source="explicit_name",
+            topic_source="exact_focus",
+            topic_score=1.0,
+            topic_margin=1.0,
+        )
+
+        self.assertTrue(
+            should_partition_topic(exact, min_semantic_margin=10.0)
+        )
+
+    def test_margin_calibration_rejects_low_confidence_error(self) -> None:
+        benchmark = {
+            "queries": [
+                {"query_id": "Q1", "topic": "AI & Emerging Tech"},
+                {"query_id": "Q2", "topic": "Payments & Fintech"},
+                {"query_id": "Q3", "topic": "Regulation & Compliance"},
+            ]
+        }
+        decisions = {
+            "Q1": RouteDecision(
+                "EVT001", "Payments & Fintech", "explicit_name", "semantic", 0.6, 0.05
+            ),
+            "Q2": RouteDecision(
+                "EVT001", "Payments & Fintech", "explicit_name", "semantic", 0.7, 0.20
+            ),
+            "Q3": RouteDecision(
+                "EVT001", "Regulation & Compliance", "explicit_name", "semantic", 0.8, 0.30
+            ),
+        }
+
+        threshold = calibrate_topic_margin(benchmark, decisions)
+
+        self.assertGreater(threshold, 0.05)
+        self.assertLessEqual(threshold, 0.20)
+        self.assertFalse(
+            should_partition_topic(
+                decisions["Q1"], min_semantic_margin=threshold
+            )
+        )
+        self.assertTrue(
+            should_partition_topic(
+                decisions["Q2"], min_semantic_margin=threshold
+            )
+        )
 
 
 if __name__ == "__main__":

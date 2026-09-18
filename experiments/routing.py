@@ -17,6 +17,7 @@ class RouteDecision:
     event_source: str
     topic_source: str
     topic_score: float
+    topic_margin: float
 
 
 def _topic_document(topic: str) -> str:
@@ -68,14 +69,14 @@ class QueryRouter:
             return selected_event_id, "conversation_context"
         return None, "unresolved"
 
-    def _route_topic(self, query: str) -> tuple[str, str, float]:
+    def _route_topic(self, query: str) -> tuple[str, str, float, float]:
         normalised_query = _normalise(query)
         for topic in self.topics:
             if _normalise(topic) in normalised_query:
-                return topic, "explicit_topic", 1.0
+                return topic, "explicit_topic", 1.0, 1.0
             for focus in TOPICS[topic]["focuses"]:
                 if _normalise(focus) in normalised_query:
-                    return topic, "exact_focus", 1.0
+                    return topic, "exact_focus", 1.0, 1.0
 
         query_embedding = np.asarray(
             self.encoder.encode_queries([query]), dtype=np.float32
@@ -83,17 +84,35 @@ class QueryRouter:
         query_vector = _normalise_rows(query_embedding)[0]
         similarities = self.topic_embeddings @ query_vector
         best_index = int(np.argmax(similarities))
-        return self.topics[best_index], "semantic", float(similarities[best_index])
+        ordered = np.sort(similarities)
+        margin = float(ordered[-1] - ordered[-2])
+        return (
+            self.topics[best_index],
+            "semantic",
+            float(similarities[best_index]),
+            margin,
+        )
 
     def route(
         self, query: str, *, selected_event_id: str | None = None
     ) -> RouteDecision:
         event_id, event_source = self._route_event(query, selected_event_id)
-        topic, topic_source, topic_score = self._route_topic(query)
+        topic, topic_source, topic_score, topic_margin = self._route_topic(query)
         return RouteDecision(
             event_id=event_id,
             topic=topic,
             event_source=event_source,
             topic_source=topic_source,
             topic_score=topic_score,
+            topic_margin=topic_margin,
         )
+
+
+def should_partition_topic(
+    decision: RouteDecision, *, min_semantic_margin: float
+) -> bool:
+    if min_semantic_margin < 0:
+        raise ValueError("min_semantic_margin must not be negative")
+    if decision.topic_source in {"explicit_topic", "exact_focus"}:
+        return True
+    return decision.topic_margin >= min_semantic_margin
