@@ -16,7 +16,7 @@ from concierge.llm import (
     RetryingProvider,
 )
 from concierge.models import load_agenda
-from concierge.retrieval import retrieve
+from concierge.retrieval import build_retriever
 
 
 EVALUATION_VERSION = "2026.08.3"
@@ -223,12 +223,16 @@ def _missing_required_text(
 
 def evaluate(with_llm: bool = False) -> int:
     agenda = load_agenda()
+    retriever = build_retriever(
+        os.getenv("RETRIEVAL_MODE", "deterministic")
+    )
     concierge = None
 
     if with_llm:
         concierge = GroundedConcierge(
             agenda,
             build_eval_provider(),
+            retriever=retriever,
         )
 
     failures = 0
@@ -244,7 +248,7 @@ def evaluate(with_llm: bool = False) -> int:
     print(f"Evaluation version: {EVALUATION_VERSION}")
 
     for number, case in enumerate(EVALUATION_CASES, start=1):
-        items = retrieve(agenda, case.question)
+        items = retriever.retrieve(agenda, case.question)
         retrieved_ids = {item.id for item in items}
 
         missing = case.required_ids - retrieved_ids

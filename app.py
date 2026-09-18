@@ -20,6 +20,7 @@ from concierge.llm import (
 )
 from concierge.models import Agenda, load_agenda
 from concierge.planner import parse_time_windows
+from concierge.retrieval import build_retriever
 
 
 load_dotenv()
@@ -616,6 +617,9 @@ def get_concierge() -> GroundedConcierge:
     return GroundedConcierge(
         agenda=get_agenda(),
         generator=build_llm_provider(),
+        retriever=build_retriever(
+            os.getenv("RETRIEVAL_MODE", "deterministic")
+        ),
     )
 
 

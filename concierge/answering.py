@@ -11,9 +11,10 @@ from concierge.planner import (
     parse_time_windows,
 )
 from concierge.retrieval import (
+    DeterministicRetriever,
     RetrievedItem,
+    Retriever,
     render_context,
-    retrieve,
 )
 
 
@@ -682,10 +683,12 @@ class GroundedConcierge:
         agenda: Agenda,
         generator: LLMProvider,
         limit: int = 100,
+        retriever: Retriever | None = None,
     ) -> None:
         self.agenda = agenda
         self.generator = generator
         self.limit = limit
+        self.retriever = retriever or DeterministicRetriever()
 
     def answer(
         self,
@@ -803,7 +806,7 @@ class GroundedConcierge:
             ]
 
         else:
-            items = retrieve(
+            items = self.retriever.retrieve(
                 scoped_agenda,
                 question,
                 limit=self.limit,

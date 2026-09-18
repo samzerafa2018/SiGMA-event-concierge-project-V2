@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import time
-from typing import Literal
+from typing import Literal, Protocol
 
 from concierge.models import Agenda
 
@@ -17,6 +17,17 @@ class RetrievedItem:
     id: str
     score: int
     text: str
+
+
+class Retriever(Protocol):
+    """Interface implemented by agenda retrieval strategies."""
+
+    def retrieve(
+        self,
+        agenda: Agenda,
+        query: str,
+        limit: int = 100,
+    ) -> list[RetrievedItem]: ...
 
 
 STOPWORDS = {
@@ -580,6 +591,29 @@ def retrieve(agenda: Agenda, query: str, limit: int = 100) -> list[RetrievedItem
             ranked_results = strong_results
 
     return ranked_results[:limit]
+
+
+class DeterministicRetriever:
+    """Adapter preserving the existing structured lexical retrieval path."""
+
+    def retrieve(
+        self,
+        agenda: Agenda,
+        query: str,
+        limit: int = 100,
+    ) -> list[RetrievedItem]:
+        return retrieve(agenda, query, limit=limit)
+
+
+def build_retriever(mode: str = "deterministic") -> Retriever:
+    """Build a configured retriever without loading optional ML dependencies."""
+    normalised_mode = mode.strip().lower()
+    if normalised_mode == "deterministic":
+        return DeterministicRetriever()
+    raise ValueError(
+        "RETRIEVAL_MODE must currently be 'deterministic'. "
+        "Adaptive retrieval remains experimental."
+    )
 
 
 def render_context(items: list[RetrievedItem]) -> str:
