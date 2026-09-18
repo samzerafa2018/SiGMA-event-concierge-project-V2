@@ -8,7 +8,7 @@ from typing import Any, Protocol, Sequence
 
 import numpy as np
 
-from experiments.benchmark_retrieval import LexicalIndex, SearchResult
+from experiments.benchmark_retrieval import LexicalIndex, SearchResult, _normalise
 
 
 DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
@@ -250,4 +250,58 @@ class HybridIndex:
             lexical_results,
             vector_results,
             top_k=top_k,
+        )
+
+
+class AdaptiveHybridIndex:
+    """Choose lexical retrieval for exact signals and vectors otherwise.
+
+    This keeps identifier and exact-title lookups fast and deterministic while
+    reserving the embedding model for queries that need semantic matching.
+    """
+
+    def __init__(self, records: list[dict[str, Any]], vector_index: VectorIndex) -> None:
+        self.records = records
+        self.lexical_index = LexicalIndex(records)
+        self.vector_index = vector_index
+
+    def _has_exact_signal(
+        self,
+        query: str,
+        *,
+        event_id: str | None,
+        kind: str | None,
+    ) -> bool:
+        normalised_query = _normalise(query)
+        query_lower = query.lower()
+        for record in self.records:
+            if event_id is not None and record["event_id"] != event_id:
+                continue
+            if kind is not None and record["kind"] != kind:
+                continue
+            if record["record_id"].lower() in query_lower:
+                return True
+            normalised_title = _normalise(record["title"])
+            if normalised_title and normalised_title in normalised_query:
+                return True
+        return False
+
+    def search(
+        self,
+        query: str,
+        *,
+        top_k: int = 5,
+        event_id: str | None = None,
+        kind: str | None = None,
+    ) -> list[SearchResult]:
+        index = (
+            self.lexical_index
+            if self._has_exact_signal(query, event_id=event_id, kind=kind)
+            else self.vector_index
+        )
+        return index.search(
+            query,
+            top_k=top_k,
+            event_id=event_id,
+            kind=kind,
         )

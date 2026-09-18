@@ -11,6 +11,7 @@ from typing import Any, Callable
 from experiments.benchmark_retrieval import LexicalIndex, SearchResult, _percentile
 from experiments.generate_synthetic_corpus import generate_benchmark
 from experiments.hybrid_retrieval import (
+    AdaptiveHybridIndex,
     DEFAULT_EMBEDDING_MODEL,
     HybridIndex,
     SentenceTransformerEncoder,
@@ -75,6 +76,7 @@ def run_hybrid_comparison(
     records = benchmark["records"]
     lexical_index = LexicalIndex(records)
     hybrid_index = HybridIndex(records, vector_index)
+    adaptive_index = AdaptiveHybridIndex(records, vector_index)
 
     def lexical_search(query: dict[str, Any]) -> list[SearchResult]:
         return lexical_index.search(
@@ -100,6 +102,14 @@ def run_hybrid_comparison(
             kind=query["kind"],
         )
 
+    def adaptive_search(query: dict[str, Any]) -> list[SearchResult]:
+        return adaptive_index.search(
+            query["text"],
+            top_k=top_k,
+            event_id=query["event_id"],
+            kind=query["kind"],
+        )
+
     return {
         "lexical": evaluate_search(
             benchmark, "lexical_routed", lexical_search, top_k
@@ -110,7 +120,33 @@ def run_hybrid_comparison(
         "hybrid": evaluate_search(
             benchmark, "hybrid_routed", hybrid_search, top_k
         ),
+        "adaptive": evaluate_search(
+            benchmark, "hybrid_adaptive", adaptive_search, top_k
+        ),
     }
+
+
+def split_benchmark_by_event(
+    benchmark: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Split evaluation queries across whole events, never individual records."""
+    event_ids = sorted({record["event_id"] for record in benchmark["records"]})
+    if len(event_ids) < 2:
+        raise ValueError("At least two events are required for an event-level split")
+    development_events = set(event_ids[::2])
+    held_out_events = set(event_ids[1::2])
+
+    def query_subset(allowed_events: set[str]) -> dict[str, Any]:
+        return {
+            **benchmark,
+            "queries": [
+                query
+                for query in benchmark["queries"]
+                if query["event_id"] in allowed_events
+            ],
+        }
+
+    return query_subset(development_events), query_subset(held_out_events)
 
 
 def print_results(results: dict[str, dict[str, Any]], build_seconds: float) -> None:
@@ -121,7 +157,7 @@ def print_results(results: dict[str, dict[str, Any]], build_seconds: float) -> N
         f"{'Mode':<16} {'Recall@5':>10} {'MRR':>8} {'Full recall':>13} "
         f"{'Event leakage':>15} {'p50 ms':>9} {'p95 ms':>9}"
     )
-    for name in ("lexical", "vector", "hybrid"):
+    for name in ("lexical", "vector", "hybrid", "adaptive"):
         result = results[name]
         print(
             f"{result['mode']:<16} "
@@ -136,7 +172,34 @@ def print_results(results: dict[str, dict[str, Any]], build_seconds: float) -> N
     for cohort in results["lexical"]["cohort_recall_at_k"]:
         scores = ", ".join(
             f"{name}={results[name]['cohort_recall_at_k'][cohort]:.3f}"
-            for name in ("lexical", "vector", "hybrid")
+            for name in ("lexical", "vector", "hybrid", "adaptive")
+        )
+        print(f"- {cohort}: {scores}")
+
+
+def print_split_results(
+    development_results: dict[str, dict[str, Any]],
+    held_out_results: dict[str, dict[str, Any]],
+) -> None:
+    print("\nEvent-level evaluation split")
+    print("-" * 62)
+    print(f"{'Split':<12} {'Mode':<16} {'Recall@5':>10} {'MRR':>8}")
+    for split_name, results in (
+        ("development", development_results),
+        ("held_out", held_out_results),
+    ):
+        for name in ("lexical", "vector", "hybrid", "adaptive"):
+            result = results[name]
+            print(
+                f"{split_name:<12} {result['mode']:<16} "
+                f"{result['recall_at_k']:>10.3f} {result['mrr']:>8.3f}"
+            )
+
+    print("\nHeld-out Recall@5 by semantic cohort")
+    for cohort in ("semantic_paraphrase", "exhibitor_semantic"):
+        scores = ", ".join(
+            f"{name}={held_out_results[name]['cohort_recall_at_k'][cohort]:.3f}"
+            for name in ("lexical", "vector", "hybrid", "adaptive")
         )
         print(f"- {cohort}: {scores}")
 
@@ -186,6 +249,18 @@ def main() -> None:
         top_k=args.top_k,
     )
     print_results(results, build_seconds)
+    development_benchmark, held_out_benchmark = split_benchmark_by_event(benchmark)
+    development_results = run_hybrid_comparison(
+        development_benchmark,
+        vector_index,
+        top_k=args.top_k,
+    )
+    held_out_results = run_hybrid_comparison(
+        held_out_benchmark,
+        vector_index,
+        top_k=args.top_k,
+    )
+    print_split_results(development_results, held_out_results)
     if args.json_output is not None:
         args.json_output.parent.mkdir(parents=True, exist_ok=True)
         args.json_output.write_text(
@@ -195,6 +270,8 @@ def main() -> None:
                     "embedding_cache_used": cache_used,
                     "build_seconds": build_seconds,
                     "results": results,
+                    "development_results": development_results,
+                    "held_out_results": held_out_results,
                 },
                 indent=2,
             )

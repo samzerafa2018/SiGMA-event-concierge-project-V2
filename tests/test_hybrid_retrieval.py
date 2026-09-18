@@ -5,9 +5,13 @@ from pathlib import Path
 import numpy as np
 
 from experiments.benchmark_retrieval import SearchResult
-from experiments.benchmark_hybrid import run_hybrid_comparison
+from experiments.benchmark_hybrid import (
+    run_hybrid_comparison,
+    split_benchmark_by_event,
+)
 from experiments.generate_synthetic_corpus import generate_benchmark
 from experiments.hybrid_retrieval import (
+    AdaptiveHybridIndex,
     HybridIndex,
     VectorIndex,
     load_or_create_document_embeddings,
@@ -20,6 +24,7 @@ class ConceptEncoder:
 
     def __init__(self) -> None:
         self.document_calls = 0
+        self.query_calls = 0
 
     @staticmethod
     def _vector(text: str) -> list[float]:
@@ -35,6 +40,7 @@ class ConceptEncoder:
         return np.asarray([self._vector(text) for text in texts], dtype=np.float32)
 
     def encode_queries(self, texts):
+        self.query_calls += 1
         return np.asarray([self._vector(text) for text in texts], dtype=np.float32)
 
 
@@ -86,6 +92,30 @@ class HybridRetrievalTests(unittest.TestCase):
         self.assertEqual(results[0].record_id, "EVT001-S0001")
         self.assertTrue(all(result.event_id == "EVT001" for result in results))
 
+    def test_adaptive_search_uses_lexical_for_exact_title(self) -> None:
+        adaptive = AdaptiveHybridIndex(self.records, self.vector_index)
+        results = adaptive.search(
+            "When is the Rapid Payout session?",
+            event_id="EVT001",
+            kind="session",
+            top_k=2,
+        )
+
+        self.assertEqual(results[0].record_id, "EVT001-S0001")
+        self.assertEqual(self.encoder.query_calls, 0)
+
+    def test_adaptive_search_uses_vectors_for_semantic_query(self) -> None:
+        adaptive = AdaptiveHybridIndex(self.records, self.vector_index)
+        results = adaptive.search(
+            "How can we make an instant transfer?",
+            event_id="EVT001",
+            kind="session",
+            top_k=2,
+        )
+
+        self.assertEqual(results[0].record_id, "EVT001-S0001")
+        self.assertEqual(self.encoder.query_calls, 1)
+
     def test_reciprocal_rank_fusion_combines_both_rankings(self) -> None:
         lexical = [
             SearchResult("A", "EVT001", 10.0),
@@ -129,7 +159,7 @@ class HybridRetrievalTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "one embedding"):
             VectorIndex(self.records, np.ones((2, 3)), self.encoder)
 
-    def test_comparison_reports_all_three_routed_methods(self) -> None:
+    def test_comparison_reports_all_four_routed_methods(self) -> None:
         benchmark = generate_benchmark(
             event_count=2,
             sessions_per_event=10,
@@ -147,10 +177,25 @@ class HybridRetrievalTests(unittest.TestCase):
 
         results = run_hybrid_comparison(benchmark, vector_index)
 
-        self.assertEqual(set(results), {"lexical", "vector", "hybrid"})
+        self.assertEqual(set(results), {"lexical", "vector", "hybrid", "adaptive"})
         for result in results.values():
             self.assertEqual(result["queries"], 8)
             self.assertEqual(result["cross_event_leakage_rate"], 0.0)
+
+    def test_event_split_has_no_query_event_overlap(self) -> None:
+        benchmark = generate_benchmark(event_count=4, seed=23)
+
+        development, held_out = split_benchmark_by_event(benchmark)
+        development_events = {query["event_id"] for query in development["queries"]}
+        held_out_events = {query["event_id"] for query in held_out["queries"]}
+
+        self.assertTrue(development_events)
+        self.assertTrue(held_out_events)
+        self.assertTrue(development_events.isdisjoint(held_out_events))
+        self.assertEqual(
+            development_events | held_out_events,
+            {record["event_id"] for record in benchmark["records"]},
+        )
 
 
 if __name__ == "__main__":
