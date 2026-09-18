@@ -1,3 +1,4 @@
+import copy
 import json
 import tempfile
 import unittest
@@ -91,6 +92,40 @@ class SyntheticCorpusTests(unittest.TestCase):
                 "exhibitor_semantic": 4,
             },
         )
+
+    def test_semantic_queries_use_wording_held_out_from_target_records(self) -> None:
+        records_by_id = {
+            record["record_id"]: record for record in self.benchmark["records"]
+        }
+        semantic_queries = [
+            query
+            for query in self.benchmark["queries"]
+            if query["cohort"] in {"semantic_paraphrase", "exhibitor_semantic"}
+        ]
+
+        self.assertTrue(semantic_queries)
+        for query in semantic_queries:
+            intent = query["semantic_intent"].lower()
+            for record_id in query["expected_record_ids"]:
+                target = records_by_id[record_id]
+                target_text = f"{target['title']} {target['description']}".lower()
+                self.assertNotIn(intent, target_text)
+
+    def test_validation_rejects_semantic_wording_copied_from_target(self) -> None:
+        invalid = copy.deepcopy(self.benchmark)
+        semantic_query = next(
+            query
+            for query in invalid["queries"]
+            if query["cohort"] == "semantic_paraphrase"
+        )
+        target_id = semantic_query["expected_record_ids"][0]
+        target = next(
+            record for record in invalid["records"] if record["record_id"] == target_id
+        )
+        semantic_query["semantic_intent"] = target["title"]
+
+        with self.assertRaisesRegex(ValueError, "appears verbatim"):
+            validate_benchmark(invalid)
 
     def test_written_benchmark_round_trips_as_json(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

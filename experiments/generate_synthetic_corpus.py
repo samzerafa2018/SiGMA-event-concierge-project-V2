@@ -49,6 +49,16 @@ TOPICS: dict[str, dict[str, tuple[str, ...]]] = {
             "measuring whether AI answers are reliable",
             "artificial records for safe model testing",
         ),
+        "held_out_queries": (
+            "autonomous tools that can complete tasks for users",
+            "preventing generative systems from producing unsafe responses",
+            "adapting experiences while avoiding harm to customers",
+            "letting a chatbot consult source material before replying",
+            "finding suspicious patterns that could signal abuse",
+            "self-hosted neural networks whose parameters are available",
+            "testing whether machine-generated responses are dependable",
+            "fabricated examples that resemble real records without exposing customers",
+        ),
     },
     "Payments & Fintech": {
         "focuses": (
@@ -70,6 +80,16 @@ TOPICS: dict[str, dict[str, tuple[str, ...]]] = {
             "preventing disputed card transactions",
             "financial services inside other products",
             "automating cash and liquidity operations",
+        ),
+        "held_out_queries": (
+            "getting winnings into a customer's account with minimal delay",
+            "paying directly through a customer's bank account",
+            "using blockchain-backed money to complete merchant transfers",
+            "choosing the best processor for each purchase attempt",
+            "holding and transferring funds across national boundaries",
+            "reducing losses when cardholders challenge a purchase",
+            "adding banking capabilities directly inside a digital service",
+            "using software to manage company cash positions",
         ),
     },
     "Regulation & Compliance": {
@@ -93,6 +113,16 @@ TOPICS: dict[str, dict[str, tuple[str, ...]]] = {
             "preparing evidence for compliance reviews",
             "tools that support safer gambling",
         ),
+        "held_out_queries": (
+            "confirming who a new customer really is with less manual work",
+            "spotting financial activity that may involve criminal proceeds",
+            "staying within legal limits when promoting betting products",
+            "intervening before at-risk customers experience serious harm",
+            "handling identifiable customer information under data law",
+            "adjusting supervisory requirements to an operator's risk level",
+            "organising proof before an external regulatory inspection",
+            "product features that encourage healthier gambling behaviour",
+        ),
     },
     "Affiliate Marketing": {
         "focuses": (
@@ -115,6 +145,16 @@ TOPICS: dict[str, dict[str, tuple[str, ...]]] = {
             "marketing with directly collected customer data",
             "automating repetitive advertising workflows",
         ),
+        "held_out_queries": (
+            "working out which touchpoint deserves credit for a sale",
+            "commercial campaigns involving social media personalities",
+            "protecting organic discovery when ranking systems change",
+            "learning what persuades a website visitor to sign up",
+            "rewriting promotions so they feel native to each market",
+            "preventing adverts from appearing beside unsuitable material",
+            "reaching customers using information collected without intermediaries",
+            "letting software execute routine marketing tasks automatically",
+        ),
     },
     "Esports & Player Experience": {
         "focuses": (
@@ -136,6 +176,16 @@ TOPICS: dict[str, dict[str, tuple[str, ...]]] = {
             "governing ownership of tournament information",
             "protecting viewers and creators on live platforms",
             "tailoring experiences to individual supporters",
+        ),
+        "held_out_queries": (
+            "identifying cheating or manipulation in professional competition",
+            "keeping abusive conduct out of online player groups",
+            "maintaining viewer interest throughout a real-time tournament",
+            "making games usable by people with different impairments",
+            "giving players good reasons to return without exploiting them",
+            "deciding who may collect and sell information from tournaments",
+            "reducing harmful material during live online broadcasts",
+            "showing each supporter content matched to their preferences",
         ),
     },
 }
@@ -318,15 +368,30 @@ def _queries_for_event(
     topics = tuple(TOPICS)
     topic = topics[(event_number - 1) % len(topics)]
     topic_sessions = [record for record in sessions if record["topic"] == topic]
-    target_session = topic_sessions[0]
-    focus = target_session["title"].split(":", maxsplit=1)[0]
-    focus_index = TOPICS[topic]["focuses"].index(focus)
+    topic_exhibitors = [record for record in exhibitors if record["topic"] == topic]
+    focuses = TOPICS[topic]["focuses"]
+    available_focus_count = min(
+        len(focuses), len(topic_sessions), len(topic_exhibitors)
+    )
+    focus_index = (event_number * 3 + 1) % available_focus_count
+    focus = focuses[focus_index]
+    target_session = next(
+        record
+        for record in topic_sessions
+        if record["title"] == f"{focus}: {SESSION_FORMATS[0]}"
+    )
     semantic_targets = [
         record["record_id"]
         for record in topic_sessions
         if record["title"].startswith(f"{focus}:")
     ]
-    target_exhibitor = next(record for record in exhibitors if record["topic"] == topic)
+    target_exhibitor = next(
+        record
+        for record in exhibitors
+        if record["topic"] == topic
+        and f"{focus.lower()} products" in record["description"]
+    )
+    held_out_intent = TOPICS[topic]["held_out_queries"][focus_index]
 
     query_specs = (
         (
@@ -334,15 +399,17 @@ def _queries_for_event(
             f"When is {target_session['title']} at {event['event_name']}?",
             [target_session["record_id"]],
             "session",
+            None,
         ),
         (
             "semantic_paraphrase",
             (
                 f"At {event['event_name']}, which talks cover "
-                f"{TOPICS[topic]['paraphrases'][focus_index]}?"
+                f"{held_out_intent}?"
             ),
             semantic_targets,
             "session",
+            held_out_intent,
         ),
         (
             "cross_event_disambiguation",
@@ -352,30 +419,35 @@ def _queries_for_event(
             ),
             [target_session["record_id"]],
             "session",
+            None,
         ),
         (
             "exhibitor_semantic",
             (
                 f"Which exhibitor at {event['event_name']} helps with "
-                f"{TOPICS[topic]['paraphrases'][focus_index]}?"
+                f"{held_out_intent}?"
             ),
             [target_exhibitor["record_id"]],
             "exhibitor",
+            held_out_intent,
         ),
     )
 
-    for offset, (cohort, text, expected_ids, kind) in enumerate(query_specs, start=1):
-        queries.append(
-            {
-                "query_id": f"{event['event_id']}-Q{offset:02d}",
-                "cohort": cohort,
-                "text": text,
-                "event_id": event["event_id"],
-                "topic": topic,
-                "kind": kind,
-                "expected_record_ids": expected_ids,
-            }
-        )
+    for offset, (cohort, text, expected_ids, kind, semantic_intent) in enumerate(
+        query_specs, start=1
+    ):
+        query = {
+            "query_id": f"{event['event_id']}-Q{offset:02d}",
+            "cohort": cohort,
+            "text": text,
+            "event_id": event["event_id"],
+            "topic": topic,
+            "kind": kind,
+            "expected_record_ids": expected_ids,
+        }
+        if semantic_intent is not None:
+            query["semantic_intent"] = semantic_intent
+        queries.append(query)
 
     return queries
 
@@ -421,7 +493,7 @@ def generate_benchmark(
 
     benchmark = {
         "metadata": {
-            "generator_version": "1.0",
+            "generator_version": "1.1",
             "seed": seed,
             "event_count": event_count,
             "sessions_per_event": sessions_per_event,
@@ -456,6 +528,7 @@ def validate_benchmark(benchmark: dict[str, Any]) -> None:
 
     known_events = set(event_ids)
     known_records = set(record_ids)
+    records_by_id = {record["record_id"]: record for record in records}
     for record in records:
         if record["event_id"] not in known_events:
             raise ValueError(f"Record references unknown event: {record['record_id']}")
@@ -476,6 +549,20 @@ def validate_benchmark(benchmark: dict[str, Any]) -> None:
             raise ValueError(
                 f"Query {query['query_id']} leaks targets from another event: {wrong_event}"
             )
+        if query["cohort"] in {"semantic_paraphrase", "exhibitor_semantic"}:
+            semantic_intent = query.get("semantic_intent", "").strip().lower()
+            if not semantic_intent:
+                raise ValueError(
+                    f"Semantic query {query['query_id']} has no held-out intent"
+                )
+            for record_id in query["expected_record_ids"]:
+                target = records_by_id[record_id]
+                target_text = f"{target['title']} {target['description']}".lower()
+                if semantic_intent in target_text:
+                    raise ValueError(
+                        f"Semantic intent for {query['query_id']} appears verbatim "
+                        f"in target {record_id}"
+                    )
 
     title_event_counts: dict[str, set[str]] = {}
     for record in records:
