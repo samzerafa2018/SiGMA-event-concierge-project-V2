@@ -201,3 +201,14 @@ If port `8501` is already in use, start Streamlit on another port:
 ```bash
 streamlit run app.py --server.port 8502
 ```
+## Retrieval decision for the portfolio release
+
+The application keeps deterministic retrieval as its default. An optional
+lexical evidence filter was evaluated on 17 separately labelled agenda
+questions (10 answerable paraphrases and seven with no agenda answer). It
+improved no-answer accuracy from 0.429 to 0.857, but reduced recall@5 on
+answerable questions from 0.700 to 0.400. That trade-off was unacceptable,
+so the filter was not enabled in this release. This small set has now been
+inspected and is not an untouched holdout for future tuning. Synthetic
+multi-event routing and vector benchmarks remain experiments; they do not
+represent a measured improvement to this single-event application.
